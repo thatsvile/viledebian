@@ -118,7 +118,7 @@ enable_i386_multiarch() {
         echo "i386 multiarch already enabled."
         return 0
     fi
-    echo "Enabling i386 multiarch (Steam / NVIDIA 32-bit libs)..."
+    echo "Enabling i386 multiarch (NVIDIA 32-bit libs)..."
     sudo dpkg --add-architecture i386
 }
 
@@ -361,7 +361,7 @@ install_nvidia_stack() {
     # Headers for the backports kernel so open DKMS can build.
     sudo apt-get install -y -t trixie-backports linux-headers-amd64
     sudo apt-get install -y nvidia-open
-    echo "Installing 32-bit NVIDIA libs for Steam/Proton..."
+    echo "Installing 32-bit NVIDIA libs..."
     sudo apt-get install -y nvidia-driver-libs:i386
     configure_nvidia_modeset
     rm -rf "$tmp"
@@ -445,15 +445,18 @@ done 2>/dev/null &
 clear
 require_debian_trixie
 
+echo "Installing curl and build-essential first..."
+sudo apt-get update
+sudo apt-get install -y curl build-essential
+
 echo "Checking network..."
 if ! curl -fsSL --connect-timeout 8 -o /dev/null https://deb.debian.org/; then
     echo "ERROR: No network reachability to deb.debian.org. Configure network and try again."
     exit 1
 fi
 
-echo "Ensuring bootstrap tools..."
-sudo apt-get update
-sudo apt-get install -y git curl ca-certificates gnupg gpg wget build-essential
+echo "Ensuring remaining bootstrap tools..."
+sudo apt-get install -y git ca-certificates gnupg gpg wget
 
 BUILD_ROOT=$(mktemp -d)
 

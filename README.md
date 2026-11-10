@@ -57,8 +57,8 @@ bash viledebian/vile/install.sh
 The script asks for sudo early and keeps it alive. It enables `trixie-backports`
 and installs a newer backports kernel, adds the Dux Labs repo for niri, installs
 LibreWolf via extrepo, and asks whether you have an NVIDIA GPU. On YES it installs
-NVIDIA's apt `nvidia-open` drivers (plus 32-bit libs for Steam) and the NVIDIA
-niri session env. When it finishes, reboot.
+NVIDIA's apt `nvidia-open` drivers (plus 32-bit libs) and the NVIDIA niri
+session env. When it finishes, reboot.
 
 What the installer roughly does: configures apt repos, installs packages, pulls a
 few upstream tools/themes, builds viledesktop, copies configs and wallpapers,

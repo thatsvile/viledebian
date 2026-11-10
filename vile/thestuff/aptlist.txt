@@ -56,7 +56,6 @@ sddm
 seatd
 slurp
 speech-dispatcher
-steam-installer
 tumbler
 unzip
 wayland-protocols
