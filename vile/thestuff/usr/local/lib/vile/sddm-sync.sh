@@ -4,6 +4,7 @@
 set -euo pipefail
 
 THEME_DIR="/usr/share/sddm/themes/vile"
+THEME_CONF="$THEME_DIR/theme.conf"
 THEME_USER_CONF="$THEME_DIR/theme.conf.user"
 THEME_BG="$THEME_DIR/background.jpg"
 
@@ -31,6 +32,22 @@ resolve_user() {
     fi
 
     printf '%s\t%s\t%s\n' "$uid" "$name" "$home"
+}
+
+# Normalize a wal-rendered sddm.conf so background is an absolute path the Qt6
+# greeter can load (relative names like background.jpg often fail → white screen).
+normalize_theme_conf() {
+    local dest=$1
+    local bg_abs="$THEME_BG"
+    if grep -qE '^[[:space:]]*background=' "$dest"; then
+        sed -i -E "s|^[[:space:]]*background=.*|background=${bg_abs}|" "$dest"
+    elif grep -qE '^[[:space:]]*\[General\]' "$dest"; then
+        sed -i -E "/^[[:space:]]*\[General\]/a background=${bg_abs}" "$dest"
+    else
+        printf '[General]\nbackground=%s\n' "$bg_abs" | cat - "$dest" >"${dest}.tmp"
+        mv "${dest}.tmp" "$dest"
+        chmod 644 "$dest"
+    fi
 }
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -76,20 +93,11 @@ if ! runuser -u "$_user_name" -- test -r "$wallpaper"; then
     exit 1
 fi
 
-# theme.conf.user overrides packaged theme.conf; keep background relative to theme dir.
+# Write both theme.conf and theme.conf.user. .user is the documented override;
+# mirroring into theme.conf keeps colors correct if a greeter only reads the base file.
 install -m 644 "$wal_conf" "$THEME_USER_CONF"
-# Force background key to the copied asset name regardless of template drift.
-if grep -qE '^[[:space:]]*background=' "$THEME_USER_CONF"; then
-    sed -i -E 's|^[[:space:]]*background=.*|background=background.jpg|' "$THEME_USER_CONF"
-else
-    if grep -qE '^[[:space:]]*\[General\]' "$THEME_USER_CONF"; then
-        sed -i -E '/^[[:space:]]*\[General\]/a background=background.jpg' "$THEME_USER_CONF"
-    else
-        printf '[General]\nbackground=background.jpg\n' | cat - "$THEME_USER_CONF" >"${THEME_USER_CONF}.tmp"
-        mv "${THEME_USER_CONF}.tmp" "$THEME_USER_CONF"
-        chmod 644 "$THEME_USER_CONF"
-    fi
-fi
+normalize_theme_conf "$THEME_USER_CONF"
+install -m 644 "$THEME_USER_CONF" "$THEME_CONF"
 
 install -m 644 "$wallpaper" "$THEME_BG"
-chown root:root "$THEME_USER_CONF" "$THEME_BG"
+chown root:root "$THEME_CONF" "$THEME_USER_CONF" "$THEME_BG"

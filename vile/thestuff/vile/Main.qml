@@ -29,28 +29,41 @@ Rectangle {
     id: container
     width: 640
     height: 480
+    // Qt Quick default is white; keep a dark fallback if the wallpaper fails to load.
+    color: config.rect_color || "#111111"
 
     LayoutMirroring.enabled: Qt.locale().textDirection == Qt.RightToLeft
     LayoutMirroring.childrenInherit: true
 
     property int sessionIndex: session.index
 
+    // Qt6 greeter does not reliably resolve bare relative image paths; prefer absolute
+    // paths from theme.conf, otherwise resolve against this QML file's theme dir.
+    function wallpaperSource(path) {
+        var s = (path === undefined || path === null) ? "" : path.toString()
+        if (s.length === 0)
+            return ""
+        if (s.indexOf("file:") === 0 || s.indexOf("qrc:") === 0 || s.charAt(0) === "/")
+            return s
+        return Qt.resolvedUrl(s)
+    }
+
     TextConstants { id: textConstants }
 
     Connections {
         target: sddm
 
-        onLoginSucceeded: {
+        function onLoginSucceeded() {
             errorMessage.color = "lightsteelblue"
             errorMessage.text = textConstants.loginSucceeded
         }
 
-        onLoginFailed: {
+        function onLoginFailed() {
             password.text = ""
             errorMessage.color = "red"
             errorMessage.text = textConstants.loginFailed
         }
-        onInformationMessage: {
+        function onInformationMessage(message) {
             errorMessage.color = "red"
             errorMessage.text = message
         }
@@ -58,11 +71,11 @@ Rectangle {
 
     Background {
         anchors.fill: parent
-        source: config.background
+        source: container.wallpaperSource(config.background)
         fillMode: Image.PreserveAspectCrop
         onStatusChanged: {
-            if (status == Image.Error && source != config.defaultBackground) {
-                source = config.defaultBackground
+            if (status == Image.Error && source != container.wallpaperSource(config.defaultBackground)) {
+                source = container.wallpaperSource(config.defaultBackground)
             }
         }
     }
