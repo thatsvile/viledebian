@@ -147,9 +147,43 @@ install_librewolf() {
 install_apt_packages() {
     echo "Installing Debian packages from aptlist.txt..."
     mapfile -t pkgs < <(grep -vE '^[[:space:]]*(#|$)' "$THE_STUFF/aptlist.txt")
-    sudo apt-get install -y "${pkgs[@]}"
+    # Debian apt installs Recommends by default. That turns this list into full DEs:
+    # xdg-desktop-portal-gnome -> gnome-shell -> gdm3, and sddm -> breeze/Plasma.
+    # Arch pacman does not; keep Debian installs lean and niri-only.
+    sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
+    # Explicit soft-deps we still want (would have been Recommends).
+    sudo apt-get install -y --no-install-recommends \
+        libpam-systemd libpam-gnome-keyring gnome-keyring-pkcs11 || true
     # niri comes from Dux; xwayland-satellite is typically pulled as a dependency.
-    sudo apt-get install -y niri
+    sudo apt-get install -y --no-install-recommends niri
+}
+
+purge_unwanted_desktops() {
+    # Belt-and-suspenders if recommends/tasks already pulled a DE on this machine.
+    echo "Removing GNOME/Plasma display stacks so SDDM only offers niri..."
+    local pkgs=(
+        gdm3
+        gnome-shell
+        gnome-session
+        plasma-desktop
+        plasma-workspace
+        sddm-theme-breeze
+        sddm-theme-debian-breeze
+        xdg-desktop-portal-kde
+    )
+    local installed=()
+    local p
+    for p in "${pkgs[@]}"; do
+        if dpkg -s "$p" >/dev/null 2>&1; then
+            installed+=("$p")
+        fi
+    done
+    if ((${#installed[@]})); then
+        sudo apt-get remove -y --purge "${installed[@]}" || true
+        sudo apt-get autoremove -y --purge || true
+    fi
+    sudo systemctl disable --now gdm3 gdm 2>/dev/null || true
+    sudo systemctl mask gdm3.service 2>/dev/null || true
 }
 
 remove_stale_pywal_packages() {
@@ -502,6 +536,7 @@ enable_dux_niri_repo
 sudo apt-get update
 install_librewolf
 install_apt_packages
+purge_unwanted_desktops
 remove_stale_pywal_packages
 install_getnf
 install_wifitui
@@ -762,16 +797,30 @@ PY
 fi
 systemctl daemon-reload
 
+# Never leave gdm as the active display manager (gnome-shell recommends pull it in).
+systemctl disable --now gdm3 gdm 2>/dev/null || true
+systemctl mask gdm3.service 2>/dev/null || true
 systemctl enable sddm
 systemctl set-default graphical.target
+# Force the display-manager alias onto sddm even if gdm claimed it first.
+ln -sfd /lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
+systemctl daemon-reload
 install -d /usr/share/sddm/themes /usr/local/lib/vile /etc/sddm.conf.d
 install -d /usr/share/polkit-1/actions /etc/polkit-1/rules.d /etc/apt/apt.conf.d
+install -d -o sddm -g sddm /var/lib/sddm 2>/dev/null || install -d /var/lib/sddm
 cp -r "$THE_STUFF/vile" /usr/share/sddm/themes/
 chown -R root:root /usr/share/sddm/themes/vile
 install -m 644 "$THE_STUFF/etc/sddm.conf.d/10-vile.conf" /etc/sddm.conf.d/10-vile.conf
 install -m 755 "$THE_STUFF/usr/local/lib/vile/sddm-sync.sh" /usr/local/lib/vile/sddm-sync.sh
 install -m 644 "$THE_STUFF/usr/share/polkit-1/actions/com.vile.sddm.sync.policy" /usr/share/polkit-1/actions/com.vile.sddm.sync.policy
 install -m 644 "$THE_STUFF/etc/polkit-1/rules.d/10-vile-sddm.rules" /etc/polkit-1/rules.d/10-vile-sddm.rules
+# Preselect niri so the greeter does not land on Plasma/GNOME if those .desktop
+# files still exist from a partial recommends install.
+if [[ -f /usr/share/wayland-sessions/niri.desktop && -n "${USER:-}" ]]; then
+    printf '[Last]\nUser=%s\nSession=/usr/share/wayland-sessions/niri.desktop\n' "$USER" \
+        >/var/lib/sddm/state.conf
+    chown sddm:sddm /var/lib/sddm/state.conf 2>/dev/null || true
+fi
 SUDO_USER="$USER" SUDO_UID="$(id -u "$USER")" /usr/local/lib/vile/sddm-sync.sh
 if [[ -f "$THE_STUFF/etc/librewolf/policies.json" ]]; then
     install -d /usr/local/share/vile /usr/local/lib/vile
