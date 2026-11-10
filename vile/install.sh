@@ -682,9 +682,47 @@ done
 chmod +x "$HOME/.local/bin/"*
 clear
 
-echo "Configuring SDDM, theme, and LibreWolf policies..."
+echo "Configuring zram-generator, SDDM, theme, and LibreWolf policies..."
 sudo bash -c "
 set -euo pipefail
+# Prefer systemd-zram-generator over zram-tools (do not run both).
+systemctl disable --now zramswap.service >/dev/null 2>&1 || true
+if dpkg -s zram-tools >/dev/null 2>&1; then
+    apt-get remove -y zram-tools || true
+fi
+install -d /etc/systemd
+install -m 644 \"$THE_STUFF/etc/systemd/zram-generator.conf\" /etc/systemd/zram-generator.conf
+# Keep disk swap as overflow: lower its priority below zram's swap-priority=100.
+if [[ -f /etc/fstab ]]; then
+    python3 - <<'PY'
+from pathlib import Path
+path = Path("/etc/fstab")
+lines = path.read_text().splitlines(keepends=True)
+out = []
+changed = False
+for line in lines:
+    raw = line
+    stripped = line.strip()
+    if stripped and not stripped.startswith("#"):
+        parts = stripped.split()
+        if len(parts) >= 4 and parts[2] == "swap":
+            opts = parts[3].split(",")
+            opts = [o for o in opts if not o.startswith("pri=")]
+            opts.append("pri=0")
+            parts[3] = ",".join(opts)
+            # Preserve original newline style.
+            nl = "\n" if line.endswith("\n") else ""
+            line = "\t".join(parts) + nl
+            if line != raw:
+                changed = True
+    out.append(line)
+if changed:
+    path.write_text("".join(out))
+    print("vile: set disk swap pri=0 in /etc/fstab (zram stays preferred at 100)")
+PY
+fi
+systemctl daemon-reload
+
 systemctl enable sddm
 systemctl set-default graphical.target
 install -d /usr/share/sddm/themes /usr/local/lib/vile /etc/sddm.conf.d

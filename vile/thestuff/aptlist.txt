@@ -72,4 +72,4 @@ xserver-xorg-input-libinput
 xfsprogs
 xl2tpd
 xwayland
-zram-tools
+systemd-zram-generator
