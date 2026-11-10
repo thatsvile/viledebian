@@ -5,6 +5,11 @@ export ELECTRON_OZONE_PLATFORM_HINT=auto
 export NVD_BACKEND=direct
 export XDG_CURRENT_DESKTOP=niri
 
+# Wayland uses text-input; GTK/Qt IM module vars make ibus-ui-gtk3 spam a
+# sticky "Please unset QT_IM_MODULE and GTK_IM_MODULE..." notification every login.
+unset GTK_IM_MODULE QT_IM_MODULE CLUTTER_IM_MODULE
+unset XMODIFIERS
+
 eval $(gnome-keyring-daemon --start --components=secrets)
 export SQLITE_TMPDIR=/tmp
 

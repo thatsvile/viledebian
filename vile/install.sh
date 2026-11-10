@@ -726,6 +726,18 @@ chooser_cmd=slurp -f %o -or
 chooser_type=simple
 EOF
 
+# sddm-theme-breeze pulls Plasma packages whose xdg-autostart entries (and some
+# globally-enabled user units) otherwise start under niri: white xwaylandvideobridge
+# window, kdeconnect, and ibus login notifications. Hidden overrides ship in
+# thestuff/.config/autostart/; also pin im-config off and mask Plasma shells.
+if command -v im-config >/dev/null 2>&1; then
+    im-config -n none >/dev/null 2>&1 || true
+fi
+systemctl --user mask \
+    plasma-plasmashell.service \
+    plasma-ksmserver.service \
+    plasma-kcminit.service >/dev/null 2>&1 || true
+
 if [[ ! -x "$POLKIT_AGENT" ]]; then
     echo "WARNING: polkit agent missing at $POLKIT_AGENT (mate-polkit)."
 fi
