@@ -349,22 +349,54 @@ PY
     fi
 }
 
+install_nvidia_i386_libs() {
+    # Steam/Wine 32-bit GL only. Must not abort the rest of install if apt
+    # refuses a multiarch mix (common when NVIDIA amd64 and Debian i386 disagree).
+    echo "Installing 32-bit NVIDIA libs (optional, for Steam/Wine)..."
+    local ver pkg
+    ver=$(dpkg-query -W -f='${Version}' nvidia-driver-libs 2>/dev/null || true)
+    if [[ -n "$ver" ]]; then
+        pkg="nvidia-driver-libs:i386=${ver}"
+    else
+        pkg="nvidia-driver-libs:i386"
+    fi
+    if sudo apt-get install -y "$pkg"; then
+        return 0
+    fi
+    echo "WARNING: could not install ${pkg}."
+    echo "         NVIDIA drivers are installed; continuing without 32-bit libs."
+    echo "         (Steam/Wine 32-bit OpenGL may need a manual fix later.)"
+    return 0
+}
+
 install_nvidia_stack() {
     echo "Installing NVIDIA open drivers from NVIDIA's apt repo..."
-    local tmp keyring_deb
+    local tmp keyring_deb rc=0
     tmp=$(mktemp -d)
+    # Always drop the temp keyring dir, even if a later apt step fails.
+    # shellcheck disable=SC2064
+    trap "rm -rf '$tmp'" RETURN
     keyring_deb="cuda-keyring_1.1-1_all.deb"
     curl -fsSL "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/${keyring_deb}" \
         -o "$tmp/$keyring_deb"
     sudo dpkg -i "$tmp/$keyring_deb"
     sudo apt-get update
     # Headers for the backports kernel so open DKMS can build.
-    sudo apt-get install -y -t trixie-backports linux-headers-amd64
-    sudo apt-get install -y nvidia-open
-    echo "Installing 32-bit NVIDIA libs..."
-    sudo apt-get install -y nvidia-driver-libs:i386
-    configure_nvidia_modeset
-    rm -rf "$tmp"
+    if ! sudo apt-get install -y -t trixie-backports linux-headers-amd64; then
+        echo "WARNING: backports linux-headers install failed; DKMS may not build."
+        rc=1
+    fi
+    if ! sudo apt-get install -y nvidia-open; then
+        echo "ERROR: nvidia-open install failed."
+        return 1
+    fi
+    # Optional: must not abort install.sh / skip SDDM when multiarch conflicts.
+    install_nvidia_i386_libs
+    if ! configure_nvidia_modeset; then
+        echo "WARNING: nvidia-drm modeset GRUB update failed; continuing."
+        rc=1
+    fi
+    return "$rc"
 }
 
 echo -e "\033[0;32m"
@@ -663,7 +695,12 @@ do
             echo "sorry..."
             rm -f "$HOME/.local/bin/niri-start-nonvidia.sh"
             mv "$HOME/.local/bin/niri-start-nvidia.sh" "$HOME/.local/bin/niri-start.sh"
-            install_nvidia_stack
+            # Keep SDDM/zram/LibreWolf setup running even if a secondary NVIDIA
+            # apt step (often i386 "compatibility" libs) fails under set -e.
+            if ! install_nvidia_stack; then
+                echo "WARNING: NVIDIA stack install failed; continuing with desktop setup."
+                echo "         Check apt output above; nvidia-smi may still work after reboot."
+            fi
             sleep 1
             break
             ;;
@@ -683,7 +720,9 @@ chmod +x "$HOME/.local/bin/"*
 clear
 
 echo "Configuring zram-generator, SDDM, theme, and LibreWolf policies..."
-sudo bash -c "
+# Heredoc (not bash -c "...") so nested Python quotes/heredocs parse cleanly.
+sudo env THE_STUFF="$THE_STUFF" VILE_ROOT="$VILE_ROOT" HOME="$HOME" USER="$USER" \
+    bash <<'ROOTEOF'
 set -euo pipefail
 # Prefer systemd-zram-generator over zram-tools (do not run both).
 systemctl disable --now zramswap.service >/dev/null 2>&1 || true
@@ -691,7 +730,7 @@ if dpkg -s zram-tools >/dev/null 2>&1; then
     apt-get remove -y zram-tools || true
 fi
 install -d /etc/systemd
-install -m 644 \"$THE_STUFF/etc/systemd/zram-generator.conf\" /etc/systemd/zram-generator.conf
+install -m 644 "$THE_STUFF/etc/systemd/zram-generator.conf" /etc/systemd/zram-generator.conf
 # Keep disk swap as overflow: lower its priority below zram's swap-priority=100.
 if [[ -f /etc/fstab ]]; then
     python3 - <<'PY'
@@ -727,27 +766,27 @@ systemctl enable sddm
 systemctl set-default graphical.target
 install -d /usr/share/sddm/themes /usr/local/lib/vile /etc/sddm.conf.d
 install -d /usr/share/polkit-1/actions /etc/polkit-1/rules.d /etc/apt/apt.conf.d
-cp -r \"$THE_STUFF/vile\" /usr/share/sddm/themes/
+cp -r "$THE_STUFF/vile" /usr/share/sddm/themes/
 chown -R root:root /usr/share/sddm/themes/vile
-install -m 644 \"$THE_STUFF/etc/sddm.conf.d/10-vile.conf\" /etc/sddm.conf.d/10-vile.conf
-install -m 755 \"$THE_STUFF/usr/local/lib/vile/sddm-sync.sh\" /usr/local/lib/vile/sddm-sync.sh
-install -m 644 \"$THE_STUFF/usr/share/polkit-1/actions/com.vile.sddm.sync.policy\" /usr/share/polkit-1/actions/com.vile.sddm.sync.policy
-install -m 644 \"$THE_STUFF/etc/polkit-1/rules.d/10-vile-sddm.rules\" /etc/polkit-1/rules.d/10-vile-sddm.rules
-SUDO_USER=\"$USER\" SUDO_UID=\"$(id -u)\" /usr/local/lib/vile/sddm-sync.sh
-if [[ -f \"$THE_STUFF/etc/librewolf/policies.json\" ]]; then
+install -m 644 "$THE_STUFF/etc/sddm.conf.d/10-vile.conf" /etc/sddm.conf.d/10-vile.conf
+install -m 755 "$THE_STUFF/usr/local/lib/vile/sddm-sync.sh" /usr/local/lib/vile/sddm-sync.sh
+install -m 644 "$THE_STUFF/usr/share/polkit-1/actions/com.vile.sddm.sync.policy" /usr/share/polkit-1/actions/com.vile.sddm.sync.policy
+install -m 644 "$THE_STUFF/etc/polkit-1/rules.d/10-vile-sddm.rules" /etc/polkit-1/rules.d/10-vile-sddm.rules
+SUDO_USER="$USER" SUDO_UID="$(id -u "$USER")" /usr/local/lib/vile/sddm-sync.sh
+if [[ -f "$THE_STUFF/etc/librewolf/policies.json" ]]; then
     install -d /usr/local/share/vile /usr/local/lib/vile
-    install -m 644 \"$THE_STUFF/etc/librewolf/policies.json\" /usr/local/share/vile/librewolf-policies.json
-    install -m 755 \"$THE_STUFF/usr/local/lib/vile/librewolf-policy.sh\" /usr/local/lib/vile/librewolf-policy.sh
-    install -m 755 \"$THE_STUFF/usr/local/lib/vile/librewolf-policy-hook.sh\" /usr/local/lib/vile/librewolf-policy-hook.sh
-    install -m 644 \"$THE_STUFF/etc/apt/apt.conf.d/99vile-librewolf\" /etc/apt/apt.conf.d/99vile-librewolf
-    if [[ -f \"$HOME/.local/share/vilefox/vilefox-signed.xpi\" ]]; then
-        install -m 644 \"$HOME/.local/share/vilefox/vilefox-signed.xpi\" /usr/local/share/vile/vilefox-signed.xpi
-    elif [[ -f \"$VILE_ROOT/vilefox/vilefox-signed.xpi\" ]]; then
-        install -m 644 \"$VILE_ROOT/vilefox/vilefox-signed.xpi\" /usr/local/share/vile/vilefox-signed.xpi
+    install -m 644 "$THE_STUFF/etc/librewolf/policies.json" /usr/local/share/vile/librewolf-policies.json
+    install -m 755 "$THE_STUFF/usr/local/lib/vile/librewolf-policy.sh" /usr/local/lib/vile/librewolf-policy.sh
+    install -m 755 "$THE_STUFF/usr/local/lib/vile/librewolf-policy-hook.sh" /usr/local/lib/vile/librewolf-policy-hook.sh
+    install -m 644 "$THE_STUFF/etc/apt/apt.conf.d/99vile-librewolf" /etc/apt/apt.conf.d/99vile-librewolf
+    if [[ -f "$HOME/.local/share/vilefox/vilefox-signed.xpi" ]]; then
+        install -m 644 "$HOME/.local/share/vilefox/vilefox-signed.xpi" /usr/local/share/vile/vilefox-signed.xpi
+    elif [[ -f "$VILE_ROOT/vilefox/vilefox-signed.xpi" ]]; then
+        install -m 644 "$VILE_ROOT/vilefox/vilefox-signed.xpi" /usr/local/share/vile/vilefox-signed.xpi
     fi
     /usr/local/lib/vile/librewolf-policy.sh
 fi
-"
+ROOTEOF
 
 fish << EOF
 if not contains "$HOME/.local/bin" \$fish_user_paths
