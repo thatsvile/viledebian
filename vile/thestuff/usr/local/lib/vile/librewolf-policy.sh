@@ -1,10 +1,16 @@
 #!/bin/bash
 # Merge vile LibreWolf policies into the package policies.json and /etc.
+# Arch packages policies under /usr/lib/librewolf; Debian/extrepo under /usr/share/librewolf.
 set -euo pipefail
 
 FRAGMENT="${1:-/usr/local/share/vile/librewolf-policies.json}"
 ETC_POLICIES="/etc/librewolf/policies.json"
-DIST_POLICIES="/usr/lib/librewolf/distribution/policies.json"
+
+# First existing path wins for merge target; we also rewrite /etc always.
+DIST_CANDIDATES=(
+    /usr/lib/librewolf/distribution/policies.json
+    /usr/share/librewolf/distribution/policies.json
+)
 
 if [[ ! -f "$FRAGMENT" ]]; then
     echo "vile-librewolf-policy: missing fragment $FRAGMENT" >&2
@@ -14,7 +20,15 @@ fi
 install -d /etc/librewolf
 install -m 644 "$FRAGMENT" "$ETC_POLICIES"
 
-if [[ ! -f "$DIST_POLICIES" ]]; then
+DIST_POLICIES=""
+for candidate in "${DIST_CANDIDATES[@]}"; do
+    if [[ -f "$candidate" ]]; then
+        DIST_POLICIES=$candidate
+        break
+    fi
+done
+
+if [[ -z "$DIST_POLICIES" ]]; then
     echo "vile-librewolf-policy: LibreWolf distribution policies not found yet; /etc policies installed."
     exit 0
 fi
