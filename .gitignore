@@ -1,0 +1,35 @@
+.cursor/
+
+# Rust / cargo build output (viledesktop and any nested crates)
+**/target/
+**/*.rs.bk
+
+# Editor / OS junk
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+
+# Installer / upstream clone artifacts (created by install.sh)
+vile/thestuff/papirus-folders/
+vile/thestuff/papirus-folders-git/
+
+# Debian / NVIDIA download leftovers
+*.deb
+cuda-keyring*.deb
+
+# Accidental binary drops
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+*.a
+*.rlib

@@ -1,0 +1,2 @@
+// Re-merge vile LibreWolf policies after package manager transactions.
+DPkg::Post-Invoke { "/usr/local/lib/vile/librewolf-policy-hook.sh || true"; };
