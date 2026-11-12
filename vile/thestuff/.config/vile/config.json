@@ -69,7 +69,7 @@
       "monitors": [
         "*"
       ],
-      "height": 25,
+      "height": 27,
       "margin_vertical": 4,
       "margin_horizontal": 8,
       "padding_vertical": 10,
