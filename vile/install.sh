@@ -216,34 +216,6 @@ install_getnf() {
     rm -rf "$tmp"
 }
 
-install_wifitui() {
-    if command -v wifitui >/dev/null 2>&1; then
-        echo "wifitui already installed."
-        return 0
-    fi
-    echo "Installing wifitui from upstream release..."
-    local tmp tag arch asset url stamp_dir
-    tmp=$(mktemp -d)
-    arch=$(detect_cpu_arch)
-    tag=$(curl -fsSL "https://api.github.com/repos/shazow/wifitui/releases/latest" \
-        | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
-    asset="wifitui-${tag#v}-linux-${arch}.tar.gz"
-    url="https://github.com/shazow/wifitui/releases/download/${tag}/${asset}"
-    curl -fsSL "$url" -o "$tmp/$asset"
-    tar -xzf "$tmp/$asset" -C "$tmp"
-    local bin
-    bin=$(find "$tmp" -type f -name wifitui -print -quit)
-    if [[ -z "$bin" ]]; then
-        echo "ERROR: wifitui binary missing from release archive."
-        exit 1
-    fi
-    sudo install -Dm755 "$bin" /usr/local/bin/wifitui
-    stamp_dir="${XDG_CACHE_HOME:-$HOME/.cache}/vile/src"
-    mkdir -p "$stamp_dir"
-    echo "$tag" >"$stamp_dir/wifitui.installed"
-    rm -rf "$tmp"
-}
-
 install_adw_gtk3() {
     echo "Installing adw-gtk3 theme from upstream release..."
     local tmp tag asset url
@@ -349,6 +321,75 @@ ensure_rustup() {
         echo "ERROR: cargo is not on PATH after rustup."
         exit 1
     fi
+}
+
+viledesktop_bins() {
+    echo "vile viledaemon vilebar vilecolors vilewall vileshot vilefox"
+}
+
+dist_dir_for_host() {
+    echo "$SCRIPT_DIR/../dist/$(uname -m)"
+}
+
+bundled_bins_ready() {
+    local dist="$1"
+    local bin
+    [[ -d "$dist" ]] || return 1
+    for bin in $(viledesktop_bins); do
+        [[ -x "$dist/$bin" ]] || return 1
+    done
+    return 0
+}
+
+install_bins_from_dir() {
+    local src_dir="$1"
+    local bin
+    mkdir -p "$HOME/.local/bin/"
+    for bin in $(viledesktop_bins); do
+        if [[ ! -x "$src_dir/$bin" ]]; then
+            echo "ERROR: missing executable $src_dir/$bin"
+            exit 1
+        fi
+        # Unlink first so a running binary does not block the overwrite.
+        rm -f "$HOME/.local/bin/$bin"
+        cp "$src_dir/$bin" "$HOME/.local/bin/$bin"
+        chmod +x "$HOME/.local/bin/$bin"
+    done
+}
+
+install_viledesktop_bins() {
+    local mode="${1:-}"
+    local VILE_ROOT="$SCRIPT_DIR/../viledesktop"
+    local dist
+    dist=$(dist_dir_for_host)
+
+    mkdir -p "$HOME/.local/bin/"
+
+    if [[ "$mode" == "bundled" ]]; then
+        if bundled_bins_ready "$dist"; then
+            echo "Installing bundled viledesktop binaries from $dist ..."
+            install_bins_from_dir "$dist"
+            return 0
+        fi
+        echo "WARNING: bundled binaries missing or incomplete for $(uname -m) at $dist"
+        echo "         Falling back to building from source."
+        mode="source"
+    fi
+
+    if [[ "$mode" != "source" ]]; then
+        echo "ERROR: unknown viledesktop binary source: $mode"
+        exit 1
+    fi
+
+    if [[ ! -f "$VILE_ROOT/Cargo.toml" ]]; then
+        echo "ERROR: viledesktop workspace missing at $VILE_ROOT"
+        exit 1
+    fi
+
+    ensure_rustup
+    echo "Building viledesktop..."
+    (cd "$VILE_ROOT" && cargo build --release --workspace)
+    install_bins_from_dir "$VILE_ROOT/target/release"
 }
 
 configure_nvidia_modeset() {
@@ -457,8 +498,9 @@ notifications, wallpaper, and vilecolors theming (templates, GTK, foot,
 niri, SDDM, LibreWolf via vilefox). No widget pile. The point is to stay
 out of the way and keep you in the terminal.
 
-The install script builds viledesktop from the sibling viledesktop/
-tree, installs prerequisites, and copies configs. Meant for a minimal
+The install script installs prerequisites and copies configs. For
+viledesktop binaries you can use the prebuilt ones under dist/<arch>/
+or compile from the sibling viledesktop/ tree. Meant for a minimal
 Debian 13 (Trixie) install with no DE (Debian packages + Dux Labs niri +
 a few trusted upstreams).
 
@@ -491,6 +533,38 @@ do
             ;;
     esac
 done
+
+# How to get viledesktop binaries into ~/.local/bin.
+# "bundled" = copy from repo dist/<arch>/; "source" = cargo build --release.
+VILE_BIN_SOURCE=""
+cat << "EOF"
+
+viledesktop binaries
+--------------------
+Bundled binaries (dist/) skip a Rust compile and are faster.
+Build from source if you want to compile locally (needs rustup/cargo).
+EOF
+PS3="Install viledesktop binaries from: "
+bin_options=("Bundled (dist/)" "Build from source")
+select bin_opt in "${bin_options[@]}"
+do
+    case $bin_opt in
+        "Bundled (dist/)")
+            VILE_BIN_SOURCE="bundled"
+            echo "Using bundled binaries from dist/."
+            break
+            ;;
+        "Build from source")
+            VILE_BIN_SOURCE="source"
+            echo "Will compile viledesktop from source."
+            break
+            ;;
+        *)
+            echo "Invalid entry. Please pick 1 or 2."
+            ;;
+    esac
+done
+
 clear
 
 echo "Starting the installation..."
@@ -539,7 +613,6 @@ install_apt_packages
 purge_unwanted_desktops
 remove_stale_pywal_packages
 install_getnf
-install_wifitui
 install_adw_gtk3
 install_papirus_folders
 install_yazi
@@ -547,31 +620,16 @@ install_bluetui
 
 sudo chsh -s /usr/bin/fish "$USER"
 
-ensure_rustup
-
-VILE_ROOT="$SCRIPT_DIR/../viledesktop"
-if [[ ! -f "$VILE_ROOT/Cargo.toml" ]]; then
-    echo "ERROR: viledesktop workspace missing at $VILE_ROOT"
-    exit 1
-fi
-
-echo "Building viledesktop..."
-(cd "$VILE_ROOT" && cargo build --release --workspace)
-mkdir -p "$HOME/.local/bin/"
-for bin in vile viledaemon vilebar vilecolors vilewall vileshot vilefox; do
-    if [[ ! -x "$VILE_ROOT/target/release/$bin" ]]; then
-        echo "ERROR: viledesktop failed to build (missing target/release/$bin)."
-        exit 1
-    fi
-    cp "$VILE_ROOT/target/release/$bin" "$HOME/.local/bin/$bin"
-    chmod +x "$HOME/.local/bin/$bin"
-done
+install_viledesktop_bins "${VILE_BIN_SOURCE:-bundled}"
 
 mkdir -p "$HOME/.local/share/"
 
 stamp_dir="${XDG_CACHE_HOME:-$HOME/.cache}/vile/src"
 mkdir -p "$stamp_dir"
-if git -C "$SCRIPT_DIR/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+dist=$(dist_dir_for_host)
+if [[ -f "$dist/VERSION" ]]; then
+    cp "$dist/VERSION" "$stamp_dir/viledesktop.installed"
+elif git -C "$SCRIPT_DIR/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git -C "$SCRIPT_DIR/.." rev-parse --short=12 HEAD:viledesktop \
         >"$stamp_dir/viledesktop.installed" 2>/dev/null || true
 fi

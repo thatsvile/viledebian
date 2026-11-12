@@ -3,7 +3,9 @@
   "terminal": "foot",
   "wallpaper": {
     "mode": "fill",
-    "monitors": ["*"],
+    "monitors": [
+      "*"
+    ],
     "directory": "~/Pictures/wallpaper"
   },
   "screenshot": {
@@ -29,9 +31,18 @@
   "menu": {
     "enabled": true,
     "items": [
-      { "label": "shutdown", "command": "systemctl poweroff" },
-      { "label": "log out", "command": "niri msg action quit --skip-confirmation" },
-      { "label": "reboot", "command": "systemctl reboot" }
+      {
+        "label": "shutdown",
+        "command": "systemctl poweroff"
+      },
+      {
+        "label": "log out",
+        "command": "niri msg action quit --skip-confirmation"
+      },
+      {
+        "label": "reboot",
+        "command": "systemctl reboot"
+      }
     ]
   },
   "colors_apply_commands": [
@@ -50,17 +61,20 @@
     "cp ~/.cache/wal/vesktop-clienttheme.css ~/.var/app/dev.vencord.Vesktop/config/vesktop/settings/quickCss.css"
   ],
   "light_dark_mode": true,
+  "update_mode": "binaries",
   "bars": [
     {
       "name": "main",
       "position": "top",
-      "monitors": ["*"],
-      "height": 24,
+      "monitors": [
+        "*"
+      ],
+      "height": 25,
       "margin_vertical": 4,
       "margin_horizontal": 8,
-      "padding_vertical": 0,
-      "padding_horizontal": 0,
-      "border": 2,
+      "padding_vertical": 10,
+      "padding_horizontal": 200,
+      "border": 4,
       "corner_radius": 0,
       "font": "0xProto Nerd Font Mono",
       "foreground": "color6",
@@ -79,9 +93,16 @@
       "gpu_overlay": "both",
       "clock_format": "%I:%M:%S %p",
       "modules": {
-        "left": ["clock", "workspaces"],
+        "left": [
+          "clock",
+          "workspaces"
+        ],
         "center": [],
-        "right": ["cpu", "mem", "volume", "battery", "notifications"]
+        "right": [
+          "volume",
+          "battery",
+          "notifications"
+        ]
       }
     }
   ]

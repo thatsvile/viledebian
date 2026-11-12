@@ -11,7 +11,7 @@ pub use cells::{
 pub use config::{
     parse_hex_color, resolve_color, AnimationConfig, BarConfig, BarEdges, Config, HwMetric,
     MenuConfig, MenuItem, MeterStyle, Modules, NotificationConfig, NotificationSide, OverlayMode,
-    Position, ScreenshotConfig, TextInsets, TrayConfig, WallpaperConfig, WallpaperMode,
+    Position, ScreenshotConfig, TextInsets, TrayConfig, UpdateMode, WallpaperConfig, WallpaperMode,
     WallpaperState,
 };
 pub use ipc::{read_json_line, read_json_lines, write_json_line};

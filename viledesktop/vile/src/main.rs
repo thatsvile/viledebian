@@ -13,9 +13,12 @@ use vile_protocol::{
     WallpaperState,
 };
 
+mod update;
+
 enum Cmd {
     Vol(VolCmd),
     Refresh,
+    Update,
     Apps,
     Notifications,
     Tray,
@@ -51,6 +54,7 @@ enum VolCmd {
 fn main() -> Result<()> {
     match parse_args(std::env::args().skip(1))? {
         Cmd::Refresh => refresh(),
+        Cmd::Update => update::run(),
         Cmd::Vol(cmd) => {
             if send_to_daemon(&cmd).is_err() {
                 fallback_wpctl(&cmd);
@@ -86,6 +90,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Cmd> {
     let mut image = None;
     let mut vol = None;
     let mut refresh = false;
+    let mut update = false;
     let mut wall_only = false;
     let mut apply_wall = false;
     let mut wall_mode = None;
@@ -103,6 +108,11 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Cmd> {
         let arg = &args[i];
         if arg == "--refresh" {
             refresh = true;
+            i += 1;
+            continue;
+        }
+        if arg == "--update" {
+            update = true;
             i += 1;
             continue;
         }
@@ -267,6 +277,9 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Cmd> {
     if refresh {
         return Ok(Cmd::Refresh);
     }
+    if update {
+        return Ok(Cmd::Update);
+    }
     if apps {
         return Ok(Cmd::Apps);
     }
@@ -315,7 +328,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Cmd> {
 }
 
 fn usage() -> &'static str {
-    "usage: vile --vol +5 | vile --vol -5 | vile --vol mute | vile --apps | vile --notifications | vile --tray | vile --menu | vile --bat | vile --mem | vile --cpu | vile --gpu | vile --refresh | vile --shot full | vile --shot crop | vile --colorlab [--img <path>] [--load [name]] | vile --colors [name] [--img <path>] [-w [mode]] | vile --wall [--img <path>] [-w [mode]]"
+    "usage: vile --vol +5 | vile --vol -5 | vile --vol mute | vile --apps | vile --notifications | vile --tray | vile --menu | vile --bat | vile --mem | vile --cpu | vile --gpu | vile --refresh | vile --update | vile --shot full | vile --shot crop | vile --colorlab [--img <path>] [--load [name]] | vile --colors [name] [--img <path>] [-w [mode]] | vile --wall [--img <path>] [-w [mode]]"
 }
 
 fn parse_shot(spec: &str) -> Result<ShotMode> {
@@ -799,6 +812,14 @@ mod tests {
         match parse_args(["--refresh".into()]).unwrap() {
             Cmd::Refresh => {}
             _ => panic!("expected refresh"),
+        }
+    }
+
+    #[test]
+    fn parses_update() {
+        match parse_args(["--update".into()]).unwrap() {
+            Cmd::Update => {}
+            _ => panic!("expected update"),
         }
     }
 

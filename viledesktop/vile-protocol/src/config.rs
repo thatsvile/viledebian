@@ -42,6 +42,20 @@ pub struct Config {
     /// When false, only files directly in `templates/` are used.
     #[serde(default)]
     pub light_dark_mode: bool,
+    /// How `vile --update` refreshes viledesktop binaries in `~/.local/bin`.
+    #[serde(default)]
+    pub update_mode: UpdateMode,
+}
+
+/// Strategy for `vile --update`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateMode {
+    /// Install newer prebuilt binaries from repo `dist/<arch>/`.
+    #[default]
+    Binaries,
+    /// Clone the repo and `cargo build --release` from `viledesktop/`.
+    Source,
 }
 
 impl Config {
@@ -84,6 +98,7 @@ impl Default for Config {
             colors_apply_commands_dark: Vec::new(),
             colors_apply_commands_light: Vec::new(),
             light_dark_mode: false,
+            update_mode: UpdateMode::Binaries,
         }
     }
 }
@@ -1005,6 +1020,17 @@ mod tests {
             serde_json::from_str(r#"{"light_dark_mode":true,"bars":[{"name":"main"}]}"#)
                 .unwrap();
         assert!(on.light_dark_mode);
+    }
+
+    #[test]
+    fn update_mode_defaults_binaries() {
+        let cfg: super::Config =
+            serde_json::from_str(r#"{"bars":[{"name":"main"}]}"#).unwrap();
+        assert_eq!(cfg.update_mode, super::UpdateMode::Binaries);
+        let src: super::Config =
+            serde_json::from_str(r#"{"update_mode":"source","bars":[{"name":"main"}]}"#)
+                .unwrap();
+        assert_eq!(src.update_mode, super::UpdateMode::Source);
     }
 
     #[test]

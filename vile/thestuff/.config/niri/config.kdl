@@ -1,4 +1,4 @@
-//include "animations/pixel-waves.kdl"
+include "animations/pixel-waves.kdl"
 
 input {
     keyboard {
@@ -42,7 +42,7 @@ input {
 }
 
 layout {
-    gaps 20
+    gaps 10
     //center-focused-column "on-overflow"
     always-center-single-column
 
@@ -61,14 +61,14 @@ layout {
 
     border {
         on
-        width 2
+        width 4
     }
 
     shadow {
-        off
-        softness 1
+        on
+        softness 0
         spread 0
-        offset x=4 y=4
+        offset x=6 y=6
     }
 
     struts {
@@ -180,6 +180,18 @@ window-rule {
     }
 }
 
+// Vile bars are layer-shell; layout shadows do not apply to them automatically.
+layer-rule {
+    match namespace="vilebar"
+    geometry-corner-radius 0
+    shadow {
+        on
+        softness 0
+        spread 0
+        offset x=6 y=6
+    }
+}
+
 binds {
     // reload / vile
     Mod+R repeat=false { spawn "vile" "--refresh"; }
@@ -194,7 +206,6 @@ binds {
     Mod+Shift+T { spawn "vile" "--tray"; }
 
     // terminal widgets
-    Mod+Shift+W { spawn-sh "foot -a network sh -c wifitui"; }
     Mod+Shift+S { spawn-sh "foot -a audio -e pulsemixer"; }
     Mod+Shift+0 { spawn-sh "foot -a matrix sh -c 'sleep 0.1 && cmatrix'"; }
 

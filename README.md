@@ -23,8 +23,9 @@ heavily customized GUI apps. The point is to stay out of the way and keep you
 in the terminal as much as possible. If that sounds annoying, this setup is
 not for you — that is intentional.
 
-Sources for the shell live under `viledesktop/`. Day to day you are not meant
-to build that by hand; the install script builds it and installs the dots.
+Sources for the shell live under `viledesktop/`. Prebuilt binaries ship under
+`dist/<arch>/` (refreshed with `viledesktop/pack-dist.sh`). The installer asks
+whether to use those or compile from source.
 
 ## Stack
 
@@ -61,9 +62,16 @@ NVIDIA's apt `nvidia-open` drivers (plus 32-bit libs) and the NVIDIA niri
 session env. When it finishes, reboot.
 
 What the installer roughly does: configures apt repos, installs packages, pulls a
-few upstream tools/themes, builds viledesktop, copies configs and wallpapers,
-seeds a vilecolors palette, sets up SDDM, installs the vilefox native host, and
-wires session autostart.
+few upstream tools/themes, installs viledesktop binaries (bundled `dist/` or a
+local release build), copies configs and wallpapers, seeds a vilecolors palette,
+sets up SDDM, installs the vilefox native host, and wires session autostart.
+
+To refresh the committed binaries after changing `viledesktop/`:
+
+```bash
+chmod +x viledesktop/pack-dist.sh
+./viledesktop/pack-dist.sh
+```
 
 ## Essential keybinds
 
@@ -87,7 +95,7 @@ From `~/.config/niri/config.kdl` after install. Super is the Windows/Command key
 
 The full bind list is in the niri config — edit it there.
 
-Useful terminal popups bound in the same file: wifi (`wifitui`), `pulsemixer`.
+Useful terminal popups bound in the same file: `pulsemixer`.
 
 ## After install
 
@@ -121,24 +129,23 @@ LibreWolf auto-installs the signed vilefox add-on via policies
 still needs the XPI opened once (`~/.local/share/vilefox/vilefox-signed.xpi`
 after `vilefox install`). Disable pywalfox if it is still installed.
 
-## Maintenance (`vile-apps`)
+## Maintenance (`vile --update`)
 
-Anything not in Debian (or pulled from Dux / LibreWolf / NVIDIA) that is installed
-from trusted upstream sources can be refreshed with `vile-apps` in `~/.local/bin`
-without re-running the full installer.
+Refresh viledesktop binaries in `~/.local/bin` without re-running the full
+installer:
 
 ```bash
-vile-apps status   # installed vs upstream, no changes
-vile-apps update   # update what is behind
+vile --update
 ```
 
-It tracks:
+Mode comes from `~/.config/vile/config.json` → `update_mode`:
 
-- **viledesktop** (rebuild from this repo’s `viledesktop/` tree → `~/.local/bin`)
-- **wifitui** (GitHub releases)
+- `"binaries"` (default) — fetch this repo’s latest `main` and install newer
+  files from `dist/<arch>/` when the upstream `VERSION` differs from the
+  installed stamp
+- `"source"` — fetch the repo and `cargo build --release` from `viledesktop/`
 
-Regular Debian packages still update with `apt` as usual. Use `vile-apps`
-for the non-repo stack above.
+Regular Debian packages still update with `apt` as usual.
 
 ## Layout of this repo
 
@@ -147,12 +154,13 @@ vile/
   install.sh              # primary install path
   thestuff/
     .config/              # shipped user configs (incl. vile + niri)
-    .local/bin/           # helpers (incl. vile-apps) and session scripts
+    .local/bin/           # helpers and session scripts
     vile/                 # SDDM theme (root-owned after install)
     usr/local/lib/vile/   # privileged helpers (sddm-sync, librewolf policy, …)
     wallpaper/            # starter wallpapers
     aptlist.txt           # Debian packages the installer pulls
-viledesktop/              # viledaemon, vilebar, vilecolors, vilewall, …
+viledesktop/              # sources + pack-dist.sh (target/ stays gitignored)
+dist/<arch>/              # prebuilt release binaries for install.sh
 ```
 
 ## Notes
