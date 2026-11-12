@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 
 use crate::color::rgb_hsl;
 use crate::map::Palette;
-use vile_protocol::{templates_dir, wal_templates_dir};
+use crate::recipe::Theme;
+use vile_protocol::{templates_dir, templates_theme_dir, wal_templates_dir};
 
 #[derive(Clone)]
 struct Color {
@@ -305,13 +306,34 @@ fn skip_name(name: &str) -> bool {
     name == ".DS_Store" || name.ends_with(".swp") || name.starts_with('.')
 }
 
-pub fn collect_templates() -> Result<BTreeMap<String, String>> {
+/// Collect templates for cache export.
+///
+/// Order: builtins → `~/.config/wal/templates/` → vile `templates/` resolution.
+///
+/// When `light_dark_mode` is false, only files directly in the base templates
+/// directory are loaded (subdirs like `light/` / `dark/` are ignored).
+///
+/// When true, load `templates/{theme}/` first, then overlay base `templates/`
+/// files so same-name base entries override mode-specific ones; base-only
+/// names apply to both themes.
+pub fn collect_templates(
+    theme: Theme,
+    light_dark_mode: bool,
+) -> Result<BTreeMap<String, String>> {
     let mut map = BTreeMap::new();
     for (name, body) in builtin_templates() {
         map.insert(name.to_string(), body);
     }
     load_dir(&wal_templates_dir(), &mut map)?;
-    load_dir(&templates_dir(), &mut map)?;
+    let base = templates_dir();
+    if light_dark_mode {
+        let theme_name = match theme {
+            Theme::Dark => "dark",
+            Theme::Light => "light",
+        };
+        load_dir(&templates_theme_dir(theme_name), &mut map)?;
+    }
+    load_dir(&base, &mut map)?;
     Ok(map)
 }
 
@@ -333,6 +355,26 @@ fn load_dir(dir: &Path, map: &mut BTreeMap<String, String>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Like [`collect_templates`], but reads from an explicit base templates dir
+/// (and its `light`/`dark` children). Used by unit tests.
+#[cfg(test)]
+fn collect_templates_from(
+    base: &Path,
+    theme: Theme,
+    light_dark_mode: bool,
+) -> Result<BTreeMap<String, String>> {
+    let mut map = BTreeMap::new();
+    if light_dark_mode {
+        let theme_name = match theme {
+            Theme::Dark => "dark",
+            Theme::Light => "light",
+        };
+        load_dir(&base.join(theme_name), &mut map)?;
+    }
+    load_dir(base, &mut map)?;
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -439,5 +481,69 @@ mod tests {
         assert!(out.contains("urgent-color \"#010101\""));
         assert!(out.contains("backdrop-color \"#112233\""));
         assert!(out.contains("color \"#04040480\""));
+    }
+
+    fn temp_templates_root() -> PathBuf {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("vilecolors-tpl-{stamp}"));
+        fs::create_dir_all(root.join("light")).unwrap();
+        fs::create_dir_all(root.join("dark")).unwrap();
+        root
+    }
+
+    #[test]
+    fn light_dark_off_ignores_mode_dirs() {
+        let root = temp_templates_root();
+        fs::write(root.join("shared.txt"), "base-shared").unwrap();
+        fs::write(root.join("dark").join("mode.txt"), "dark-only").unwrap();
+        fs::write(root.join("light").join("mode.txt"), "light-only").unwrap();
+
+        let map = collect_templates_from(&root, Theme::Dark, false).unwrap();
+        assert_eq!(map.get("shared.txt").map(String::as_str), Some("base-shared"));
+        assert!(!map.contains_key("mode.txt"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn light_dark_on_uses_theme_dir() {
+        let root = temp_templates_root();
+        fs::write(root.join("dark").join("mode.txt"), "dark-only").unwrap();
+        fs::write(root.join("light").join("mode.txt"), "light-only").unwrap();
+
+        let dark = collect_templates_from(&root, Theme::Dark, true).unwrap();
+        assert_eq!(dark.get("mode.txt").map(String::as_str), Some("dark-only"));
+
+        let light = collect_templates_from(&root, Theme::Light, true).unwrap();
+        assert_eq!(light.get("mode.txt").map(String::as_str), Some("light-only"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn light_dark_on_base_only_applies_to_both() {
+        let root = temp_templates_root();
+        fs::write(root.join("shared.txt"), "both").unwrap();
+
+        let dark = collect_templates_from(&root, Theme::Dark, true).unwrap();
+        let light = collect_templates_from(&root, Theme::Light, true).unwrap();
+        assert_eq!(dark.get("shared.txt").map(String::as_str), Some("both"));
+        assert_eq!(light.get("shared.txt").map(String::as_str), Some("both"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn light_dark_on_base_overrides_same_name() {
+        let root = temp_templates_root();
+        fs::write(root.join("dark").join("niri.txt"), "from-dark").unwrap();
+        fs::write(root.join("light").join("niri.txt"), "from-light").unwrap();
+        fs::write(root.join("niri.txt"), "from-base").unwrap();
+
+        let dark = collect_templates_from(&root, Theme::Dark, true).unwrap();
+        let light = collect_templates_from(&root, Theme::Light, true).unwrap();
+        assert_eq!(dark.get("niri.txt").map(String::as_str), Some("from-base"));
+        assert_eq!(light.get("niri.txt").map(String::as_str), Some("from-base"));
+        let _ = fs::remove_dir_all(root);
     }
 }

@@ -15,7 +15,7 @@ layout {
     }
 
     shadow {
-        color "{color0}80"
+        color "{color1}45"
     }
 
     tab-indicator {
@@ -30,7 +30,7 @@ layout {
 }
 
 overview {
-    backdrop-color "{color0}"
+    backdrop-color "{color2}"
     workspace-shadow {
         color "{color0}50"
     }

@@ -138,7 +138,10 @@ pub fn apply_sequences(sequences: &[u8]) {
 
 pub fn write_cache(palette: &Palette, cache_dir: &Path) -> Result<()> {
     fs::create_dir_all(cache_dir).with_context(|| format!("creating {}", cache_dir.display()))?;
-    let templates = collect_templates()?;
+    let light_dark_mode = load_config()
+        .map(|cfg| cfg.light_dark_mode)
+        .unwrap_or(false);
+    let templates = collect_templates(palette.theme, light_dark_mode)?;
     for (name, body) in templates {
         let rendered =
             render(&body, palette).with_context(|| format!("rendering template {name}"))?;

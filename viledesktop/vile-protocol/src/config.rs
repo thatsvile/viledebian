@@ -37,6 +37,11 @@ pub struct Config {
     /// When non-empty, used instead of `colors_apply_commands` for light Theme base.
     #[serde(default)]
     pub colors_apply_commands_light: Vec<String>,
+    /// When true, load `templates/light` or `templates/dark` from Theme base, then
+    /// overlay same-name files from the base `templates/` directory as overrides.
+    /// When false, only files directly in `templates/` are used.
+    #[serde(default)]
+    pub light_dark_mode: bool,
 }
 
 impl Config {
@@ -78,6 +83,7 @@ impl Default for Config {
             colors_apply_commands: Vec::new(),
             colors_apply_commands_dark: Vec::new(),
             colors_apply_commands_light: Vec::new(),
+            light_dark_mode: false,
         }
     }
 }
@@ -988,6 +994,17 @@ mod tests {
         assert_eq!(cfg.colors_apply_commands_for("dark"), &["dark-hook".to_string()]);
         assert_eq!(cfg.colors_apply_commands_for("light"), &["light-hook".to_string()]);
         assert_eq!(cfg.colors_apply_commands_for("other"), &["dark-hook".to_string()]);
+    }
+
+    #[test]
+    fn light_dark_mode_defaults_false() {
+        let cfg: super::Config =
+            serde_json::from_str(r#"{"bars":[{"name":"main"}]}"#).unwrap();
+        assert!(!cfg.light_dark_mode);
+        let on: super::Config =
+            serde_json::from_str(r#"{"light_dark_mode":true,"bars":[{"name":"main"}]}"#)
+                .unwrap();
+        assert!(on.light_dark_mode);
     }
 
     #[test]

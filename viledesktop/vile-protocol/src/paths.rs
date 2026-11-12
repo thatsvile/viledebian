@@ -55,6 +55,12 @@ pub fn templates_dir() -> PathBuf {
     colors_dir().join("templates")
 }
 
+/// `templates/light` or `templates/dark` for Theme base–specific templates.
+/// `theme` should be `"light"` or `"dark"`.
+pub fn templates_theme_dir(theme: &str) -> PathBuf {
+    templates_dir().join(theme)
+}
+
 pub fn wal_templates_dir() -> PathBuf {
     xdg_config_home().join("wal").join("templates")
 }

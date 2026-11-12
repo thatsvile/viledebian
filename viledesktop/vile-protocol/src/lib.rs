@@ -19,6 +19,6 @@ pub use messages::{BarToDaemon, CellStyle, DaemonToBar, OverlayKind, PointerEven
 pub use paths::{
     color_cache_dir, colors_dir, config_path, ensure_config_file, ensure_runtime_dir,
     expand_home_path, load_config, load_wallpaper_state, palettes_dir, sanitize_recipe_name,
-    save_wallpaper_state, socket_path, templates_dir, vilefox_config_path, wal_compat_dir,
-    wal_templates_dir, wallpaper_directory, wallpaper_state_path, write_wal_path,
+    save_wallpaper_state, socket_path, templates_dir, templates_theme_dir, vilefox_config_path,
+    wal_compat_dir, wal_templates_dir, wallpaper_directory, wallpaper_state_path, write_wal_path,
 };

@@ -104,7 +104,12 @@ Useful terminal popups bound in the same file: wifi (`wifitui`), `pulsemixer`.
   the theme directory stays root-owned and is not user-writable.
 - **niri:** `~/.config/niri/`
 - **vile:** `~/.config/vile/` (`config.json`, recipes, templates, vilefox.json)
-- **templates:** `~/.config/wal/templates/` and `~/.config/vile/colors/templates/`
+- **templates:** `~/.config/wal/templates/` (flat) and
+  `~/.config/vile/colors/templates/`. With `"light_dark_mode": true` in
+  `config.json`, Theme base also loads `templates/light/` or `templates/dark/`;
+  same-name files in the base `templates/` dir override those, and base-only
+  files apply to both themes. With the flag off (default), only base files are
+  used.
 - **Vesktop:** `vesktop-clienttheme.css` is written to `~/.cache/wal/` on colors
   apply (`{vesktop.h/s/l}` from palette `background` hue/sat, with Theme-base S/L
   bands so dark stays near-black and light stays bright), then copied into Flatpak QuickCSS

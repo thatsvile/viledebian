@@ -49,6 +49,7 @@
     "~/.local/bin/vile-refresh.sh light",
     "cp ~/.cache/wal/vesktop-clienttheme.css ~/.var/app/dev.vencord.Vesktop/config/vesktop/settings/quickCss.css"
   ],
+  "light_dark_mode": true,
   "bars": [
     {
       "name": "main",
