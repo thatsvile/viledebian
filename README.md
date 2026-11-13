@@ -12,7 +12,7 @@
 </p>
 
 Personal Debian Trixie dots and [viledesktop](viledesktop/), built around
-[niri](https://github.com/YaLTeR/niri) and vilecolors.
+[niri](https://github.com/YaLTeR/niri).
 
 This is software I maintain for my own machines. You can use it if you want.
 It is not a general-purpose desktop, and it is not written with support in mind.
