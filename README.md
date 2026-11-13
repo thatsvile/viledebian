@@ -1,4 +1,4 @@
-# vile Debian
+# Vile Debian
 
 <p align="center">
   <a href="screenshots/1.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/1.png" alt="Screenshot 1" width="32%" /></a>
