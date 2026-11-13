@@ -64,11 +64,18 @@ chmod +x viledebian/vile/install.sh
 bash viledebian/vile/install.sh
 ```
 
-The script asks for sudo early and keeps it alive. It enables `trixie-backports`
-and installs a newer backports kernel, adds the Dux Labs repo for niri, installs
-LibreWolf via extrepo, and asks whether you have an NVIDIA GPU. On YES it installs
-NVIDIA's apt `nvidia-open` drivers (plus 32-bit libs) and the NVIDIA niri
+The script asks for sudo early and keeps it alive. make sure sudo is installed and configured.
+It enables `trixie-backports` and installs a newer backports kernel, adds 
+the Dux Labs repo for niri, installs LibreWolf via extrepo, and asks whether you
+have an NVIDIA GPU. On YES it asks which driver source to use: Debian apt 
+proprietary `nvidia-driver` (better for older GPUs such as Pascal / GTX 10xx) 
+or NVIDIA's apt `nvidia-open` (latest; Turing+).
+Both paths install 32-bit libs when possible and set the NVIDIA niri
 session env. When it finishes, reboot.
+
+This install script is meant to be run on a fresh Debian 13 Trixie installation 
+that was done WITHOUT installing any Desktop Environments during the install process.
+For best results, uncheck all desktop environments during debian installation before running this script.
 
 What the installer roughly does: configures apt repos, installs packages, pulls a
 few upstream tools/themes, installs viledesktop binaries (bundled `dist/` or a

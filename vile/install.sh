@@ -444,7 +444,43 @@ install_nvidia_i386_libs() {
     return 0
 }
 
-install_nvidia_stack() {
+install_nvidia_headers() {
+    # Headers for the backports kernel so DKMS can build.
+    if ! sudo apt-get install -y -t trixie-backports linux-headers-amd64; then
+        echo "WARNING: backports linux-headers install failed; DKMS may not build."
+        return 1
+    fi
+    return 0
+}
+
+finish_nvidia_stack() {
+    local rc="${1:-0}"
+    # Optional: must not abort install.sh / skip SDDM when multiarch conflicts.
+    install_nvidia_i386_libs
+    if ! configure_nvidia_modeset; then
+        echo "WARNING: nvidia-drm modeset GRUB update failed; continuing."
+        rc=1
+    fi
+    return "$rc"
+}
+
+# Debian proprietary stack (nvidia-driver). Prefer for older GPUs (e.g. Pascal / GTX 10xx)
+# that nvidia-open does not support.
+install_nvidia_debian() {
+    echo "Installing NVIDIA proprietary drivers from Debian apt..."
+    local rc=0
+    if ! install_nvidia_headers; then
+        rc=1
+    fi
+    if ! sudo apt-get install -y nvidia-driver; then
+        echo "ERROR: nvidia-driver install failed."
+        return 1
+    fi
+    finish_nvidia_stack "$rc"
+}
+
+# NVIDIA's apt repo + nvidia-open (latest). Turing+ / newer cards.
+install_nvidia_nvidia_repo() {
     echo "Installing NVIDIA open drivers from NVIDIA's apt repo..."
     local tmp keyring_deb rc=0
     tmp=$(mktemp -d)
@@ -456,22 +492,26 @@ install_nvidia_stack() {
         -o "$tmp/$keyring_deb"
     sudo dpkg -i "$tmp/$keyring_deb"
     sudo apt-get update
-    # Headers for the backports kernel so open DKMS can build.
-    if ! sudo apt-get install -y -t trixie-backports linux-headers-amd64; then
-        echo "WARNING: backports linux-headers install failed; DKMS may not build."
+    if ! install_nvidia_headers; then
         rc=1
     fi
     if ! sudo apt-get install -y nvidia-open; then
         echo "ERROR: nvidia-open install failed."
         return 1
     fi
-    # Optional: must not abort install.sh / skip SDDM when multiarch conflicts.
-    install_nvidia_i386_libs
-    if ! configure_nvidia_modeset; then
-        echo "WARNING: nvidia-drm modeset GRUB update failed; continuing."
-        rc=1
-    fi
-    return "$rc"
+    finish_nvidia_stack "$rc"
+}
+
+# $1 = debian | nvidia
+install_nvidia_stack() {
+    case "${1:-}" in
+        debian) install_nvidia_debian ;;
+        nvidia) install_nvidia_nvidia_repo ;;
+        *)
+            echo "ERROR: install_nvidia_stack requires debian|nvidia (got '${1:-}')."
+            return 1
+            ;;
+    esac
 }
 
 echo -e "\033[0;32m"
@@ -788,9 +828,38 @@ do
             echo "sorry..."
             rm -f "$HOME/.local/bin/niri-start-nonvidia.sh"
             mv "$HOME/.local/bin/niri-start-nvidia.sh" "$HOME/.local/bin/niri-start.sh"
+            NVIDIA_DRIVER_SOURCE=""
+            cat << "EOF"
+
+NVIDIA driver source
+--------------------
+Debian apt: proprietary nvidia-driver (Debian's packaged series; better for
+older GPUs such as Pascal / GTX 10xx that nvidia-open does not support).
+NVIDIA apt: latest nvidia-open from NVIDIA's repo (Turing+ / newer cards).
+EOF
+            PS3="NVIDIA drivers from: "
+            nvidia_options=("Debian apt (nvidia-driver)" "NVIDIA apt (nvidia-open)")
+            select nvidia_opt in "${nvidia_options[@]}"
+            do
+                case $nvidia_opt in
+                    "Debian apt (nvidia-driver)")
+                        NVIDIA_DRIVER_SOURCE="debian"
+                        echo "Using Debian proprietary nvidia-driver."
+                        break
+                        ;;
+                    "NVIDIA apt (nvidia-open)")
+                        NVIDIA_DRIVER_SOURCE="nvidia"
+                        echo "Using NVIDIA apt nvidia-open."
+                        break
+                        ;;
+                    *)
+                        echo "Invalid entry. Please pick 1 or 2."
+                        ;;
+                esac
+            done
             # Keep SDDM/zram/LibreWolf setup running even if a secondary NVIDIA
             # apt step (often i386 "compatibility" libs) fails under set -e.
-            if ! install_nvidia_stack; then
+            if ! install_nvidia_stack "$NVIDIA_DRIVER_SOURCE"; then
                 echo "WARNING: NVIDIA stack install failed; continuing with desktop setup."
                 echo "         Check apt output above; nvidia-smi may still work after reboot."
             fi
