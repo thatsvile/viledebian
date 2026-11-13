@@ -212,8 +212,9 @@ impl App {
         layer.set_exclusive_zone(bar.exclusive_zone());
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
         let _ = layer.set_buffer_scale(scale);
-        if bar.corner_radius > 0 {
-            // Punched corners are alpha-0; empty opaque region lets wallpaper show through.
+        if bar.corner_radius > 0 || bar.background_opacity_pct() < 100 {
+            // Translucent fill / punched corners need an empty opaque region so
+            // the compositor honors buffer alpha (and niri blur can show through).
             layer.wl_surface().set_opaque_region(None);
         }
         layer.commit();
@@ -229,7 +230,7 @@ impl App {
         self.surfaces.push(BarSurface {
             id,
             fg: bar.fg_argb(),
-            bg: bar.bg_argb(),
+            bg: bar.bg_fill_argb(),
             bar,
             output: output.clone(),
             output_name,

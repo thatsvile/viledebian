@@ -334,36 +334,80 @@ fn punch_corner(
     if r == 0 {
         return;
     }
-    let r2 = (r as i32) * (r as i32);
-    let inner = r.saturating_sub(thickness);
-    let inner2 = (inner as i32) * (inner as i32);
+    let rf = r as f32;
+    let inner_r = r.saturating_sub(thickness) as f32;
     let (x0, y0) = match corner {
         Corner::Tl => (0, 0),
         Corner::Tr => (width.saturating_sub(r), 0),
         Corner::Bl => (0, height.saturating_sub(r)),
         Corner::Br => (width.saturating_sub(r), height.saturating_sub(r)),
     };
+    let (cx, cy) = match corner {
+        Corner::Tl => (rf, rf),
+        Corner::Tr => (width as f32 - rf, rf),
+        Corner::Bl => (rf, height as f32 - rf),
+        Corner::Br => (width as f32 - rf, height as f32 - rf),
+    };
     for y in y0..y0 + r {
         for x in x0..x0 + r {
-            let dx = match corner {
-                Corner::Tl | Corner::Bl => r as i32 - x as i32,
-                Corner::Tr | Corner::Br => x as i32 + r as i32 + 1 - width as i32,
+            let dx = x as f32 + 0.5 - cx;
+            let dy = y as f32 + 0.5 - cy;
+            let d = (dx * dx + dy * dy).sqrt();
+            // 1px coverage ramp around the circle edge (pixel-center sample).
+            let outer = (rf + 0.5 - d).clamp(0.0, 1.0);
+            let inner = if thickness > 0 {
+                (inner_r + 0.5 - d).clamp(0.0, 1.0)
+            } else {
+                outer
             };
-            let dy = match corner {
-                Corner::Tl | Corner::Tr => r as i32 - y as i32,
-                Corner::Bl | Corner::Br => y as i32 + r as i32 + 1 - height as i32,
-            };
-            if dx <= 0 || dy <= 0 {
+            if outer <= 0.0 {
+                set_pixel(canvas, width, height, x, y, 0);
                 continue;
             }
-            let d2 = dx * dx + dy * dy;
-            if d2 > r2 {
-                set_pixel(canvas, width, height, x, y, 0);
-            } else if thickness > 0 && d2 > inner2 {
-                set_pixel(canvas, width, height, x, y, argb);
+            if inner >= 1.0 {
+                continue;
             }
+            write_corner_coverage(canvas, width, height, x, y, argb, outer, inner);
         }
     }
+}
+
+/// Premul mix of existing fill (`inner`) and border (`outer - inner`).
+/// `outer`/`inner` are coverages in 0..=1 from the rounded-rect distance field.
+fn write_corner_coverage(
+    canvas: &mut [u8],
+    width: u32,
+    height: u32,
+    x: u32,
+    y: u32,
+    border_argb: u32,
+    outer: f32,
+    inner: f32,
+) {
+    if x >= width || y >= height {
+        return;
+    }
+    let i = ((y * width + x) * 4) as usize;
+    if i + 3 >= canvas.len() {
+        return;
+    }
+    let border_cov = (outer - inner).clamp(0.0, 1.0);
+    let fb = canvas[i] as f32;
+    let fg = canvas[i + 1] as f32;
+    let fr = canvas[i + 2] as f32;
+    let fa = canvas[i + 3] as f32;
+    if border_cov <= 0.0 {
+        canvas[i] = (fb * outer).round() as u8;
+        canvas[i + 1] = (fg * outer).round() as u8;
+        canvas[i + 2] = (fr * outer).round() as u8;
+        canvas[i + 3] = (fa * outer).round() as u8;
+        return;
+    }
+    let (bb, bg, br, ba) = premul_channels(border_argb);
+    canvas[i] = (fb * inner + bb as f32 * border_cov).round() as u8;
+    canvas[i + 1] = (fg * inner + bg as f32 * border_cov).round() as u8;
+    canvas[i + 2] = (fr * inner + br as f32 * border_cov).round() as u8;
+    canvas[i + 3] = (fa * inner + ba as f32 * border_cov).round() as u8;
 }
 
 #[cfg(test)]
@@ -386,11 +430,28 @@ fn set_pixel(canvas: &mut [u8], width: u32, height: u32, x: u32, y: u32, argb: u
     canvas[i + 3] = ((argb >> 24) & 0xFF) as u8;
 }
 
-fn fill_argb(canvas: &mut [u8], argb: u32) {
+fn premul_channels(argb: u32) -> (u8, u8, u8, u8) {
     let a = ((argb >> 24) & 0xFF) as u8;
     let r = ((argb >> 16) & 0xFF) as u8;
     let g = ((argb >> 8) & 0xFF) as u8;
     let b = (argb & 0xFF) as u8;
+    if a == 255 {
+        (b, g, r, a)
+    } else if a == 0 {
+        (0, 0, 0, 0)
+    } else {
+        let a32 = a as u32;
+        (
+            ((b as u32 * a32) / 255) as u8,
+            ((g as u32 * a32) / 255) as u8,
+            ((r as u32 * a32) / 255) as u8,
+            a,
+        )
+    }
+}
+
+fn fill_argb(canvas: &mut [u8], argb: u32) {
+    let (b, g, r, a) = premul_channels(argb);
     for chunk in canvas.chunks_exact_mut(4) {
         chunk[0] = b;
         chunk[1] = g;
@@ -441,10 +502,7 @@ fn fill_rect(
     if w == 0 || h == 0 {
         return;
     }
-    let a = ((argb >> 24) & 0xFF) as u8;
-    let r = ((argb >> 16) & 0xFF) as u8;
-    let g = ((argb >> 8) & 0xFF) as u8;
-    let b = (argb & 0xFF) as u8;
+    let (b, g, r, a) = premul_channels(argb);
     let x1 = (x + w).min(width);
     let y1 = (y + h).min(height);
     for py in y..y1 {
@@ -497,11 +555,14 @@ fn blit_rect(
                 canvas[i + 2] = src_r as u8;
                 canvas[i + 3] = 255;
             } else {
+                // Premul src-over: keep destination alpha. Forcing a=255 here after
+                // blending into a translucent fill made AA edges an opaque dark fringe.
                 let inv = 255 - src_a;
+                let dst_a = canvas[i + 3] as u32;
                 canvas[i] = ((src_b * src_a + canvas[i] as u32 * inv) / 255) as u8;
                 canvas[i + 1] = ((src_g * src_a + canvas[i + 1] as u32 * inv) / 255) as u8;
                 canvas[i + 2] = ((src_r * src_a + canvas[i + 2] as u32 * inv) / 255) as u8;
-                canvas[i + 3] = 255;
+                canvas[i + 3] = (src_a + (dst_a * inv) / 255) as u8;
             }
         }
     }
@@ -509,8 +570,27 @@ fn blit_rect(
 
 #[cfg(test)]
 mod tests {
-    use super::{finish_chrome, pixel_alpha};
+    use super::{finish_chrome, pixel_alpha, premul_channels};
     use vile_protocol::BarEdges;
+
+    #[test]
+    fn premul_half_alpha() {
+        let (b, g, r, a) = premul_channels(0x80FF0000);
+        assert_eq!(a, 0x80);
+        assert_eq!(r, 0x80); // 255 * 128 / 255
+        assert_eq!(g, 0);
+        assert_eq!(b, 0);
+        let opaque = premul_channels(0xFF112233);
+        assert_eq!(opaque, (0x33, 0x22, 0x11, 0xFF));
+        assert_eq!(premul_channels(0x00112233), (0, 0, 0, 0));
+    }
+
+    #[test]
+    fn translucent_fill_writes_premul() {
+        let mut buf = vec![0u8; 4];
+        super::fill_argb(&mut buf, 0x80FF0000);
+        assert_eq!(buf, [0, 0, 0x80, 0x80]);
+    }
 
     fn canvas(w: u32, h: u32, argb: u32) -> Vec<u8> {
         let mut out = vec![0u8; (w * h * 4) as usize];
@@ -537,6 +617,32 @@ mod tests {
         assert_eq!(pixel_alpha(&buf, 16, 0, 15), 0);
         assert_eq!(pixel_alpha(&buf, 16, 15, 15), 0);
         assert_eq!(pixel_alpha(&buf, 16, 8, 8), 255);
+    }
+
+    #[test]
+    fn punch_corner_has_coverage_aa() {
+        let mut buf = canvas(32, 32, 0xFF1A1A1A);
+        let edges = BarEdges {
+            top: true,
+            right: true,
+            bottom: true,
+            left: true,
+        };
+        finish_chrome(&mut buf, 32, 32, 2, 10, edges, 0xFFE0E0E0);
+        // Far outside the TL arc stays fully clear; deep interior stays opaque.
+        assert_eq!(pixel_alpha(&buf, 32, 0, 0), 0);
+        assert_eq!(pixel_alpha(&buf, 32, 16, 16), 255);
+        // Along the TL arc there should be at least one fractional alpha pixel.
+        let mut saw_partial = false;
+        for y in 0..10u32 {
+            for x in 0..10u32 {
+                let a = pixel_alpha(&buf, 32, x, y);
+                if a > 0 && a < 255 {
+                    saw_partial = true;
+                }
+            }
+        }
+        assert!(saw_partial, "expected AA coverage on rounded corner");
     }
 
     #[test]

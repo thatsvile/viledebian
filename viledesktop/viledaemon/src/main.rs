@@ -1579,7 +1579,7 @@ impl Daemon {
         let frame = DaemonToBar::Frame {
             text: text.clone(),
             fg: bar.fg_argb(),
-            bg: bar.bg_argb(),
+            bg: bar.bg_fill_argb(),
             cells: cells.clone(),
         };
         let client = self.clients.get_mut(&id).unwrap();

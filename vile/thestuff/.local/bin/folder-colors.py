@@ -51,10 +51,12 @@ def oklab(hex_color):
         0.0259040371*l + 0.7827717662*m - 0.8086757660*s,
     )
 
-target = oklab(sys.argv[1])
+# Match on chroma only (OKLab a/b); ignore lightness so bright/dark
+# palette slots still land on the same Papirus hue family.
+_, target_a, target_b = oklab(sys.argv[1])
 
 def distance(hex_color):
-    color = oklab(hex_color)
-    return math.dist(target, color)
+    _, a, b = oklab(hex_color)
+    return math.dist((target_a, target_b), (a, b))
 
 print(min(COLORS, key=lambda name: distance(COLORS[name])))

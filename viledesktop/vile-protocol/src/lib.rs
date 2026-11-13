@@ -9,10 +9,10 @@ pub use cells::{
     pack_line, ranges_overlap, PackedLine,
 };
 pub use config::{
-    parse_hex_color, resolve_color, AnimationConfig, BarConfig, BarEdges, Config, HwMetric,
-    MenuConfig, MenuItem, MeterStyle, Modules, NotificationConfig, NotificationSide, OverlayMode,
-    Position, ScreenshotConfig, TextInsets, TrayConfig, UpdateMode, WallpaperConfig, WallpaperMode,
-    WallpaperState,
+    apply_opacity, parse_hex_color, resolve_color, AnimationConfig, BarConfig, BarEdges, Config,
+    HwMetric, MenuConfig, MenuItem, MeterStyle, Modules, NotificationConfig, NotificationSide,
+    OverlayMode, Position, ScreenshotConfig, TextInsets, TrayConfig, UpdateMode, WallpaperConfig,
+    WallpaperMode, WallpaperState,
 };
 pub use ipc::{read_json_line, read_json_lines, write_json_line};
 pub use messages::{BarToDaemon, CellStyle, DaemonToBar, OverlayKind, PointerEvent};

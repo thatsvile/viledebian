@@ -419,6 +419,9 @@ pub struct BarConfig {
     /// Hex (`#rrggbb`) or a palette slot (`color0`, `background`).
     #[serde(default = "default_background")]
     pub background: String,
+    /// Bar fill opacity only (not text/border). `100` solid, `0` fully transparent.
+    #[serde(default = "default_background_opacity")]
+    pub background_opacity: u8,
     #[serde(default)]
     pub modules: Modules,
     /// Full-bar volume overlay trigger: `never` / `scrolling` / `buttons` / `both`.
@@ -490,6 +493,10 @@ fn default_background() -> String {
     "#1a1a1a".into()
 }
 
+fn default_background_opacity() -> u8 {
+    100
+}
+
 fn default_clock_format() -> String {
     "%H:%M:%S".into()
 }
@@ -510,6 +517,7 @@ impl Default for BarConfig {
             font: default_font(),
             foreground: default_foreground(),
             background: default_background(),
+            background_opacity: default_background_opacity(),
             modules: Modules::default(),
             volume_overlay: OverlayMode::default(),
             volume_style: MeterStyle::default(),
@@ -716,8 +724,19 @@ impl BarConfig {
         resolve_color(&self.foreground).unwrap_or(0xFFE0E0E0)
     }
 
+    /// Opaque bar background (used for invert / color math).
     pub fn bg_argb(&self) -> u32 {
         resolve_color(&self.background).unwrap_or(0xFF1A1A1A)
+    }
+
+    /// Background fill with [`Self::background_opacity`] applied to the alpha byte.
+    pub fn bg_fill_argb(&self) -> u32 {
+        apply_opacity(self.bg_argb(), self.background_opacity)
+    }
+
+    /// Clamped 0–100 opacity used for the bar fill.
+    pub fn background_opacity_pct(&self) -> u8 {
+        self.background_opacity.min(100)
     }
 
     /// Clamp border and text margins so at least one pixel of inner text remains.
@@ -823,6 +842,13 @@ pub fn parse_hex_color(value: &str) -> Option<u32> {
         8 => u32::from_str_radix(value, 16).ok(),
         _ => None,
     }
+}
+
+/// Replace the alpha byte of an ARGB color using a 0–100 opacity percent.
+pub fn apply_opacity(argb: u32, opacity_pct: u8) -> u32 {
+    let pct = u32::from(opacity_pct.min(100));
+    let a = (pct * 255) / 100;
+    (argb & 0x00FF_FFFF) | (a << 24)
 }
 
 /// Resolve `#rrggbb` or a wal palette slot (`color4`, `background`, `foreground`, `cursor`).
@@ -1162,6 +1188,30 @@ mod tests {
         assert_eq!(clamped.left, 0);
         assert_eq!(clamped.top, 0);
         assert_eq!(clamped.inner_height, 2);
+    }
+
+    #[test]
+    fn background_opacity_defaults_and_fill() {
+        use super::{apply_opacity, BarConfig};
+        let bar: BarConfig = serde_json::from_str(r#"{"name":"main"}"#).unwrap();
+        assert_eq!(bar.background_opacity, 100);
+        assert_eq!(bar.background_opacity_pct(), 100);
+        assert_eq!(bar.bg_fill_argb() >> 24, 0xFF);
+
+        let half: BarConfig = serde_json::from_str(
+            r##"{"name":"main","background":"#112233","background_opacity":50}"##,
+        )
+        .unwrap();
+        assert_eq!(half.background_opacity_pct(), 50);
+        assert_eq!(half.bg_argb(), 0xFF112233);
+        assert_eq!(half.bg_fill_argb(), apply_opacity(0xFF112233, 50));
+        assert_eq!(half.bg_fill_argb() >> 24, 127);
+
+        let over: BarConfig =
+            serde_json::from_str(r#"{"name":"main","background_opacity":200}"#).unwrap();
+        assert_eq!(over.background_opacity_pct(), 100);
+        assert_eq!(apply_opacity(0xFFAABBCC, 0) >> 24, 0);
+        assert_eq!(apply_opacity(0xFFAABBCC, 100) >> 24, 0xFF);
     }
 
     #[test]

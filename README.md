@@ -1,6 +1,15 @@
 # vile
 
-[![Watch the example video](https://img.youtube.com/vi/_Iyf3RlilNw/maxresdefault.jpg)](https://www.youtube.com/watch?v=_Iyf3RlilNw)
+<p align="center">
+  <a href="screenshots/1.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/1.png" alt="Screenshot 1" width="32%" /></a>
+  <a href="screenshots/2.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/2.png" alt="Screenshot 2" width="32%" /></a>
+  <a href="screenshots/3.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/3.png" alt="Screenshot 3" width="32%" /></a>
+</p>
+<p align="center">
+  <a href="screenshots/4.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/4.png" alt="Screenshot 4" width="32%" /></a>
+  <a href="screenshots/5.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/5.png" alt="Screenshot 5" width="32%" /></a>
+  <a href="screenshots/6.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/6.png" alt="Screenshot 6" width="32%" /></a>
+</p>
 
 Personal Debian Trixie dots and [viledesktop](viledesktop/), built around
 [niri](https://github.com/YaLTeR/niri) and vilecolors.
@@ -111,7 +120,10 @@ Useful terminal popups bound in the same file: `pulsemixer`.
   SDDM sync goes through a polkit helper (`/usr/local/lib/vile/sddm-sync.sh`);
   the theme directory stays root-owned and is not user-writable.
 - **niri:** `~/.config/niri/`
-- **vile:** `~/.config/vile/` (`config.json`, recipes, templates, vilefox.json)
+- **vile:** `~/.config/vile/` (`config.json`, recipes, templates, vilefox.json).
+  Bars accept `background_opacity` (0–100; default 100) for a translucent fill
+  only (text stays solid). For niri blur behind the bar, add a `layer-rule`
+  matching `namespace="vilebar"` with `background-effect { blur true }`.
 - **templates:** `~/.config/wal/templates/` (flat) and
   `~/.config/vile/colors/templates/`. With `"light_dark_mode": true` in
   `config.json`, Theme base also loads `templates/light/` or `templates/dark/`;

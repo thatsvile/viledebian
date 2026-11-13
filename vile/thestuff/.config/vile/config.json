@@ -79,6 +79,7 @@
       "font": "0xProto Nerd Font Mono",
       "foreground": "color6",
       "background": "color0",
+      "background_opacity": 100,
       "volume_overlay": "both",
       "battery_overlay": "both",
       "volume_style": "meter",

@@ -600,21 +600,13 @@ entry:focus {{
 }}
 
 
+/* Close control: keep the button square/transparent; circle lives on > image
+ * (libadwaita). Painting both button and image as circles stretches into an oval. */
 headerbar windowcontrols button.close,
 headerbar windowcontrols button.close:hover,
 headerbar windowcontrols button.close:backdrop,
 headerbar .windowcontrols button.close,
-windowcontrols button.close {{
-    min-width: 24px;
-    min-height: 24px;
-    padding: 0px;
-    margin: 0px;
-    border-radius: 999px;
-    border: none;
-    box-shadow: none;
-}}
-
-/* Higher specificity than the earlier v3/v4 close-button sizing. */
+windowcontrols button.close,
 .nautilus-window headerbar windowcontrols button.close,
 .nautilus-window headerbar windowcontrols button.close:backdrop,
 .nautilus-window headerbar windowcontrols button.close:hover,
@@ -623,7 +615,32 @@ windowcontrols button.close {{
     min-height: 24px;
     padding: 0px;
     margin: 0px;
-    border-radius: 999px;
+    border: none;
+    border-radius: 0px;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+}}
+
+headerbar windowcontrols button.close > image,
+headerbar .windowcontrols button.close > image,
+windowcontrols button.close > image,
+.nautilus-window headerbar windowcontrols button.close > image,
+.nautilus-window headerbar button.close > image {{
+    min-width: 16px;
+    min-height: 16px;
+    padding: 4px;
+    border-radius: 9999px;
+    background-color: alpha({foreground}, 0.10);
+    box-shadow: none;
+}}
+
+headerbar windowcontrols button.close:hover > image,
+headerbar .windowcontrols button.close:hover > image,
+windowcontrols button.close:hover > image,
+.nautilus-window headerbar windowcontrols button.close:hover > image,
+.nautilus-window headerbar button.close:hover > image {{
+    background-color: alpha({foreground}, 0.19);
 }}
 
 stack#toolbar_switcher,
@@ -740,9 +757,26 @@ window.filechooser headerbar button.close {{
     min-height: 24px;
     padding: 0px;
     margin: 0px;
-    border-radius: 999px;
+    border-radius: 0px;
     border: none;
+    background-color: transparent;
+    background-image: none;
     box-shadow: none;
+}}
+
+window.filechooser headerbar windowcontrols button.close > image,
+window.filechooser headerbar button.close > image {{
+    min-width: 16px;
+    min-height: 16px;
+    padding: 4px;
+    border-radius: 9999px;
+    background-color: alpha({foreground}, 0.10);
+    box-shadow: none;
+}}
+
+window.filechooser headerbar windowcontrols button.close:hover > image,
+window.filechooser headerbar button.close:hover > image {{
+    background-color: alpha({foreground}, 0.19);
 }}
 
 /* Save filename and header search/location entries. */
@@ -906,13 +940,13 @@ window headerbar menubutton {{
     box-shadow: none;
 }}
 
-window headerbar button:hover,
+window headerbar button:hover:not(.close),
 window headerbar menubutton > button:hover,
 window headerbar splitbutton > button:hover {{
     background-color: alpha({foreground}, 0.09);
 }}
-window headerbar button:checked,
-window headerbar button:active {{
+window headerbar button:checked:not(.close),
+window headerbar button:active:not(.close) {{
     background-color: alpha({color2}, 0.17);
 }}
 
@@ -928,7 +962,7 @@ window headerbar searchentry {{
     box-shadow: none;
 }}
 
-/* GTK's window-control button gets special sizing and shape. */
+/* GTK window-control close: circle on the image node only (libadwaita). */
 window headerbar windowcontrols button.close,
 window headerbar .windowcontrols button.close {{
     min-height: 24px;
@@ -936,12 +970,22 @@ window headerbar .windowcontrols button.close {{
     padding: 0px;
     margin: 0px;
     border: none;
-    border-radius: 999px;
+    border-radius: 0px;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+}}
+window headerbar windowcontrols button.close > image,
+window headerbar .windowcontrols button.close > image {{
+    min-width: 16px;
+    min-height: 16px;
+    padding: 4px;
+    border-radius: 9999px;
     background-color: alpha({foreground}, 0.10);
     box-shadow: none;
 }}
-window headerbar windowcontrols button.close:hover,
-window headerbar .windowcontrols button.close:hover {{
+window headerbar windowcontrols button.close:hover > image,
+window headerbar .windowcontrols button.close:hover > image {{
     background-color: alpha({foreground}, 0.19);
 }}
 
@@ -973,4 +1017,75 @@ filechooser .path-bar-container {{
     background-image: none;
     border: none;
     box-shadow: none;
+}}
+
+/* ================================================================
+ * PATH BAR: kill scroll-edge fade blobs (undershoot / overshoot)
+ * ================================================================
+ * When the breadcrumb path overflows, libadwaita draws rounded radial
+ * gradients on scrolledwindow > overshoot.left/right (and linear
+ * undershoot fades). Remove those so the path just clips cleanly.
+ */
+.nautilus-window .nautilus-path-bar scrolledwindow > undershoot,
+.nautilus-window .nautilus-path-bar scrolledwindow > undershoot.left,
+.nautilus-window .nautilus-path-bar scrolledwindow > undershoot.right,
+.nautilus-window .nautilus-path-bar scrolledwindow > undershoot.top,
+.nautilus-window .nautilus-path-bar scrolledwindow > undershoot.bottom,
+.nautilus-window .nautilus-path-bar scrolledwindow > overshoot,
+.nautilus-window .nautilus-path-bar scrolledwindow > overshoot.left,
+.nautilus-window .nautilus-path-bar scrolledwindow > overshoot.right,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-start > undershoot,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-end > undershoot,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-start:dir(ltr) > undershoot.left,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-end:dir(ltr) > undershoot.right,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-start:dir(rtl) > undershoot.right,
+.nautilus-window .nautilus-path-bar scrolledwindow.undershoot-end:dir(rtl) > undershoot.left,
+.nautilus-window .path-bar-box scrolledwindow > undershoot,
+.nautilus-window .path-bar-box scrolledwindow > overshoot,
+.nautilus-window .path-bar-box scrolledwindow > overshoot.left,
+.nautilus-window .path-bar-box scrolledwindow > overshoot.right,
+box.nautilus-pathbar > scrolledwindow > undershoot,
+box.nautilus-pathbar > scrolledwindow > undershoot.left,
+box.nautilus-pathbar > scrolledwindow > undershoot.right,
+box.nautilus-pathbar > scrolledwindow > overshoot,
+box.nautilus-pathbar > scrolledwindow > overshoot.left,
+box.nautilus-pathbar > scrolledwindow > overshoot.right,
+box.nautilus-pathbar > scrolledwindow.undershoot-start > undershoot,
+box.nautilus-pathbar > scrolledwindow.undershoot-end > undershoot,
+stack#toolbar_switcher scrolledwindow > undershoot,
+stack#toolbar_switcher scrolledwindow > overshoot,
+stack#toolbar_switcher scrolledwindow > overshoot.left,
+stack#toolbar_switcher scrolledwindow > overshoot.right,
+window headerbar .nautilus-path-bar scrolledwindow > undershoot,
+window headerbar .nautilus-path-bar scrolledwindow > overshoot,
+window headerbar .nautilus-path-bar scrolledwindow > overshoot.left,
+window headerbar .nautilus-path-bar scrolledwindow > overshoot.right,
+window headerbar .nautilus-pathbar scrolledwindow > undershoot,
+window headerbar .nautilus-pathbar scrolledwindow > overshoot,
+window headerbar .nautilus-pathbar scrolledwindow > overshoot.left,
+window headerbar .nautilus-pathbar scrolledwindow > overshoot.right,
+window headerbar .path-bar scrolledwindow > undershoot,
+window headerbar .path-bar scrolledwindow > overshoot,
+window headerbar .path-bar scrolledwindow > overshoot.left,
+window headerbar .path-bar scrolledwindow > overshoot.right,
+window headerbar .path-bar-box scrolledwindow > undershoot,
+window headerbar .path-bar-box scrolledwindow > overshoot,
+window.filechooser filechooser #pathbarbox scrolledwindow > undershoot,
+window.filechooser filechooser #pathbarbox scrolledwindow > overshoot,
+window.filechooser filechooser .path-bar scrolledwindow > undershoot,
+window.filechooser filechooser .path-bar scrolledwindow > overshoot,
+filechooser #pathbarbox scrolledwindow > undershoot,
+filechooser #pathbarbox scrolledwindow > overshoot,
+filechooser .path-bar scrolledwindow > undershoot,
+filechooser .path-bar scrolledwindow > overshoot,
+filechooser .path-bar-container scrolledwindow > undershoot,
+filechooser .path-bar-container scrolledwindow > overshoot {{
+    background: none;
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    min-width: 0;
+    min-height: 0;
+    opacity: 0;
 }}
