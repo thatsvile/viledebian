@@ -1,5 +1,13 @@
 # Vile Debian
 
+<div align="center">
+<pre>
+░░█░█░▀█▀░█░░░█▀▀░░░█▀▄░█▀▀░█▀▄░▀█▀░█▀█░█▀█░░
+░░▀▄▀░░█░░█░░░█▀▀░░░█░█░█▀▀░█▀▄░░█░░█▀█░█░█░░
+░░░▀░░▀▀▀░▀▀▀░▀▀▀░░░▀▀░░▀▀▀░▀▀░░▀▀▀░▀░▀░▀░▀░░
+</pre>
+</div>
+
 <p align="center">
   <a href="screenshots/1.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/1.png" alt="Screenshot 1" width="32%" /></a>
   <a href="screenshots/2.png" target="_blank" rel="noopener noreferrer"><img src="screenshots/2.png" alt="Screenshot 2" width="32%" /></a>
