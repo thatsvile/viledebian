@@ -31,16 +31,16 @@ It is not a general-purpose desktop, and it is not written with support in mind.
 
 Two pieces that ship together:
 
-1. **Dotfiles** — niri session config, terminal/shell setup (`foot` / `fish`),
+1. **Dotfiles** - niri session config, terminal/shell setup (`foot` / `fish`),
    GTK theming, SDDM theme, and color templates that keep the session consistent.
-2. **viledesktop** — a thin Wayland shell on top of niri: text bar, app search,
+2. **viledesktop** - a thin Wayland shell on top of niri: text bar, app search,
    power menu, notifications, tray, wallpaper, screenshots, and vilecolors /
    vilefox theming.
 
 It does not try to replace a full desktop environment. No applet pile, no
 heavily customized GUI apps. The point is to stay out of the way and keep you
 in the terminal as much as possible. If that sounds annoying, this setup is
-not for you — that is intentional.
+not for you. That is intentional.
 
 Sources for the shell live under `viledesktop/`. Prebuilt binaries ship under
 `dist/<arch>/` (refreshed with `viledesktop/pack-dist.sh`). The installer asks
@@ -169,10 +169,10 @@ vile --update
 
 Mode comes from `~/.config/vile/config.json` → `update_mode`:
 
-- `"binaries"` (default) — fetch this repo’s latest `main` and install newer
+- `"binaries"` (default) - fetch this repo’s latest `main` and install newer
   files from `dist/<arch>/` when the upstream `VERSION` differs from the
   installed stamp
-- `"source"` — fetch the repo and `cargo build --release` from `viledesktop/`
+- `"source"` - fetch the repo and `cargo build --release` from `viledesktop/`
 
 Regular Debian packages still update with `apt` as usual.
 
